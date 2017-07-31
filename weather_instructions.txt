@@ -1,0 +1,32 @@
+"Station Name","VANCOUVER INTL A"
+
+"Province","BRITISH COLUMBIA"
+
+"Latitude","49.19"
+
+"Longitude","-123.18"
+
+"Elevation","4.30"
+
+"Climate Identifier","1108395"
+
+"WMO Identifier","71892"
+
+"TC Identifier","YVR"
+
+"All times are specified in Local Standard Time (LST). Add 1 hour to adjust for Daylight Saving Time where and when it is observed."
+
+
+
+"Legend"
+
+"E","Estimated"
+
+"M","Missing"
+
+"NA","Not Available"
+
+"‡","Partner data that is not subject to review by the National Climate Archives"
+
+
+*i removed the above from all the csv files because they were messing with the formatting.  preserved for reasons*
