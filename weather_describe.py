@@ -46,20 +46,24 @@ def fix_weather(observed_weather):
     The fog line should be at the end so it only ever occurs if no other weather is observed.
     (getclosematches wasnt working so i did this the ugly way)
     '''
-    if 'Rain' in observed_weather:
-        return 'Rain'
+    if 'Pellet' in observed_weather:
+        return 'Ice Pellets'
+    elif 'Thunder' in observed_weather:
+        return 'Stormy'
     elif 'Drizzle' in observed_weather:
         return 'Drizzle'
+    elif 'Fog' in observed_weather:
+        return 'Fog'
+    elif 'Snow' in observed_weather:
+        return 'Snow'
+    elif 'Shower' in observed_weather:
+        return 'Shower'
     elif 'Cloud' in observed_weather:
         return 'Cloudy'
     elif 'Clear' in observed_weather:
         return 'Clear'
-    elif 'Thunder' in observed_weather:
-        return 'Stormy'
-    elif 'Snow' in observed_weather:
-        return 'Snow'
-    elif 'Fog' in observed_weather:
-        return 'Fog'
+    elif 'Rain' in observed_weather:
+        return 'Rain'
 
 def get_fog(observed_weather):
     '''
