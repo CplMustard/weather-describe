@@ -1,5 +1,6 @@
 import sys
 from pyspark.sql import SparkSession, functions, types, Row
+from sparkdl import readImages
 import re
 #from difflib import get_close_matches
 
@@ -89,8 +90,8 @@ def main():
 
     #weather_w_fog.write.csv(output_directory, mode='overwrite')
 
-    #pics_data = spark.read.load(pic_directory, format='jpg')
-    #pics_data.show()
+    pics_data = readImages(pic_directory)
+    pics_data.show()
 
 if __name__ == '__main__':
     main()
