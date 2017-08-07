@@ -1,6 +1,10 @@
 import sys
 from pyspark.sql import SparkSession, functions, types, Row
-from sparkdl import readImages
+from pyspark.ml import Pipeline
+from pyspark.ml.feature import StringIndexer
+from pyspark.ml.classification import LogisticRegression
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+from sparkdl import readImages, DeepImageFeaturizer
 import re
 #from difflib import get_close_matches
 
@@ -75,8 +79,19 @@ def get_fog(observed_weather):
     else:
         return False
 
+def path_to_time(pathname):
+    filename = pathname.split('/')[-1]
+    time = filename.split('-')[1].split('.')[0]
+    year = time[0:4]
+    month = time[4:6]
+    day = time[6:8]
+    hour = time[8:10]
+    minute = time[10:12]
+    return year + '-' + month + '-' + day + ' ' + hour + ':' + minute
+
 udf_fix_weather = functions.udf(fix_weather, types.StringType())
 udf_get_fog = functions.udf(get_fog, types.StringType())
+udf_path_to_time = functions.udf(path_to_time, types.StringType())
 
 def main():
     data_directory = sys.argv[1]
@@ -88,14 +103,36 @@ def main():
     weather_data_selected = weather_data_no_NA.select(#include more columns as we determine what we need
         weather_data_no_NA['Date/Time'],
         weather_data_no_NA['Weather']
-    ).cache()
+    )
     weather_less_vocab = weather_data_selected.withColumn('Reduced Weather', udf_fix_weather(weather_data_selected['Weather']))
     weather_w_fog = weather_less_vocab.withColumn('Fog', udf_get_fog(weather_data_selected['Weather']))
 
-    #weather_w_fog.write.csv(output_directory, mode='overwrite')
+    weather_w_fog.write.csv(output_directory, mode='overwrite')
 
     pics_data = readImages(pic_directory)
-    pics_data.show()
+    pics_data_w_date = pics_data.select(
+        udf_path_to_time(pics_data['filePath']).alias('Date/Time'),
+        pics_data['image']
+    )
+
+    weather_data_w_images = pics_data_w_date.join(weather_w_fog, ['Date/Time'])
+    weather_data_w_images.show()
+
+    weather_train, weather_test = weather_data_w_images.randomSplit([0.6, 0.4])
+
+    stringIndexer = StringIndexer(inputCol="Weather", outputCol="indexed", handleInvalid='error')
+    featurizer = DeepImageFeaturizer(inputCol="image", outputCol="features", modelName="InceptionV3")
+    lr = LogisticRegression(maxIter=20, regParam=0.05, elasticNetParam=0.3, labelCol="indexed")
+    p = Pipeline(stages=[stringIndexer, featurizer, lr])
+    p_model = p.fit(weather_train)
+
+    predictions = p_model.transform(weather_test)
+
+    predictions.select("indexed", "prediction").show(truncate=False)
+
+    predictionAndLabels = predictions.select("prediction", "indexed")
+    evaluator = MulticlassClassificationEvaluator(metricName="accuracy")
+    print("Training set accuracy = " + str(evaluator.evaluate(predictionAndLabels)))
 
 if __name__ == '__main__':
     main()
