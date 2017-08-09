@@ -1,8 +1,8 @@
 import sys
 from pyspark.sql import SparkSession, functions, types, Row
 from pyspark.ml import Pipeline
-from pyspark.ml.feature import StringIndexer
-from pyspark.ml.classification import LogisticRegression
+from pyspark.ml.feature import StringIndexer, VectorIndexer, IndexToString
+from pyspark.ml.classification import LogisticRegression, RandomForestClassifier
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from sparkdl import readImages, DeepImageFeaturizer
 import re
@@ -120,19 +120,24 @@ def main():
 
     weather_train, weather_test = weather_data_w_images.randomSplit([0.6, 0.4])
 
-    stringIndexer = StringIndexer(inputCol="Weather", outputCol="indexed", handleInvalid='error')
+    stringIndexer = StringIndexer(inputCol="Reduced Weather", outputCol="indexedWeather", handleInvalid='skip')
     featurizer = DeepImageFeaturizer(inputCol="image", outputCol="features", modelName="InceptionV3")
-    lr = LogisticRegression(maxIter=20, regParam=0.05, elasticNetParam=0.3, labelCol="indexed")
-    p = Pipeline(stages=[stringIndexer, featurizer, lr])
+    #lr = LogisticRegression(maxIter=20, regParam=0.25, elasticNetParam=0.5, labelCol="indexedWeather")
+    featureIndexer = VectorIndexer(inputCol="features", outputCol="indexedFeatures", maxCategories=8)
+    rf = RandomForestClassifier(labelCol="indexedWeather", featuresCol="indexedFeatures", numTrees=10)
+    indexToString = IndexToString(inputCol="indexedWeather", outputCol="predictedLabel")
+    p = Pipeline(stages=[stringIndexer, featurizer, featureIndexer, rf, indexToString])
     p_model = p.fit(weather_train)
 
     predictions = p_model.transform(weather_test)
 
-    predictions.select("indexed", "prediction").show(truncate=False)
-
-    predictionAndLabels = predictions.select("prediction", "indexed")
-    evaluator = MulticlassClassificationEvaluator(metricName="accuracy")
+    predictionAndLabels = predictions.select("prediction", "indexedWeather")
+    predictionAndLabels.show(truncate=False)
+    evaluator = MulticlassClassificationEvaluator(labelCol="indexedWeather", predictionCol="prediction", metricName="accuracy")
     print("Training set accuracy = " + str(evaluator.evaluate(predictionAndLabels)))
+
+    rfModel = p_model.stages[2]
+    print(rfModel)  # summary only
 
 if __name__ == '__main__':
     main()
